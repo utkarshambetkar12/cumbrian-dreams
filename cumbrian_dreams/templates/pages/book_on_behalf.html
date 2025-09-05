@@ -1,0 +1,208 @@
+{% extends "templates/web.html" %} {% block page_title %}Book on Behalf · Cumbrian Dreams{%
+endblock %} {% block page_content %}
+
+<style>
+	.cd-wrap {
+		max-width: 840px;
+		margin: 0 auto;
+	}
+	.cd-card {
+		background: #fff;
+		border: 1px solid #eee;
+		border-radius: 14px;
+		padding: 14px;
+	}
+	.cd-grid {
+		display: grid;
+		gap: 0.75rem;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	}
+	.cd-input {
+		width: 100%;
+		padding: 0.5rem 0.6rem;
+		border-radius: 10px;
+		border: 1px solid #ddd;
+	}
+	.cd-btn {
+		display: inline-block;
+		border: 0;
+		border-radius: 10px;
+		padding: 0.5rem 0.9rem;
+		text-decoration: none;
+		font-size: 0.95rem;
+		cursor: pointer;
+	}
+	.cd-primary {
+		background: #4f46e5;
+		color: #fff;
+	}
+	.cd-secondary {
+		background: #eef;
+		color: #223;
+	}
+	.cd-muted {
+		color: #666;
+	}
+	.cd-tiny {
+		font-size: 0.8rem;
+		color: #999;
+	}
+	.ok {
+		color: #16a34a;
+	}
+	.err {
+		color: #e11d48;
+	}
+</style>
+
+<div class="cd-wrap">
+	<div class="cd-card">
+		<h2 style="margin: 0 0 0.5rem 0">Book on behalf of a user</h2>
+		<div class="cd-tiny cd-muted" style="margin-bottom: 0.5rem">
+			Select a user, property, and date. This will create a booking in that user’s name.
+		</div>
+
+		<div class="cd-grid">
+			<label>
+				<div class="cd-tiny">User</div>
+				<select id="bo-user" class="cd-input">
+					<option value="">— Select user —</option>
+					{% for u in users %}
+					<option value="{{ u.name }}">
+						{{ u.full_name or u.email or u.name }} ({{ u.name }})
+					</option>
+					{% endfor %}
+				</select>
+			</label>
+
+			<label>
+				<div class="cd-tiny">Property</div>
+				<select id="bo-prop" class="cd-input">
+					<option value="">— Select property —</option>
+					{% for p in props %}
+					<option value="{{ p.name }}">
+						{{ p.title }} — {{ p.location }} ({{ p.name }})
+					</option>
+					{% endfor %}
+				</select>
+			</label>
+
+			<label>
+				<div class="cd-tiny">Date</div>
+				<input id="bo-date" class="cd-input" type="date" min="{{ today }}" />
+			</label>
+		</div>
+
+		<div style="margin-top: 0.75rem; display: flex; gap: 0.5rem">
+			<button id="bo-check" class="cd-btn cd-secondary" type="button">
+				Check Availability
+			</button>
+			<button id="bo-book" class="cd-btn cd-primary" type="button">Book</button>
+		</div>
+
+		<div id="bo-msg" class="cd-muted" style="margin-top: 0.5rem"></div>
+	</div>
+</div>
+
+<script>
+	/* eslint-env browser */
+	/* global frappe */
+	(function () {
+		"use strict";
+		function byId(id) {
+			return document.getElementById(id);
+		}
+		function msg(t, cls) {
+			var el = byId("bo-msg");
+			if (!el) return;
+			el.className = (cls ? cls + " " : "") + "cd-muted";
+			el.textContent = String(t || "");
+		}
+		function val(id) {
+			var el = byId(id);
+			return el ? el.value : "";
+		}
+
+		document.addEventListener("DOMContentLoaded", function () {
+			var csrf = typeof frappe !== "undefined" && frappe.csrf_token ? frappe.csrf_token : "";
+
+			byId("bo-check").addEventListener("click", function () {
+				var prop = val("bo-prop"),
+					date = val("bo-date");
+				if (!prop || !date) {
+					msg("Pick property and date first.", "err");
+					return;
+				}
+				msg("Checking...");
+				fetch(
+					"/api/method/cumbrian_dreams.api.is_property_available?property=" +
+						encodeURIComponent(prop) +
+						"&booking_date=" +
+						encodeURIComponent(date),
+					{
+						credentials: "include",
+					}
+				)
+					.then(function (r) {
+						return r.json();
+					})
+					.then(function (j) {
+						var m = j.message || j;
+						msg(
+							m.available ? "Available ✅" : "Already booked ❌",
+							m.available ? "ok" : "err"
+						);
+					})
+					.catch(function () {
+						msg("Could not check availability.", "err");
+					});
+			});
+
+			byId("bo-book").addEventListener("click", function () {
+				var user = val("bo-user"),
+					prop = val("bo-prop"),
+					date = val("bo-date");
+				if (!user || !prop || !date) {
+					msg("User, Property, and Date are required.", "err");
+					return;
+				}
+				msg("Booking...");
+				fetch("/api/method/cumbrian_dreams.api.book_property", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrf },
+					credentials: "include",
+					body: JSON.stringify({
+						user: user,
+						property: prop,
+						booking_date: date,
+						payment_completed: 0,
+					}),
+				})
+					.then(function (r) {
+						return r.json().then(function (j) {
+							return { status: r.status, body: j };
+						});
+					})
+					.then(function (resp) {
+						var body = resp.body.message || resp.body;
+						if (resp.status === 409 || body.ok === false) {
+							msg(body.message || "Already booked ❌", "err");
+						} else if (resp.status >= 400) {
+							msg(
+								(body && (body.message || body._server_messages)) ||
+									"Failed to book.",
+								"err"
+							);
+						} else {
+							msg((body && body.message) || "Booking confirmed ✅", "ok");
+						}
+					})
+					.catch(function () {
+						msg("Network error while booking.", "err");
+					});
+			});
+		});
+	})();
+</script>
+
+{% endblock %}

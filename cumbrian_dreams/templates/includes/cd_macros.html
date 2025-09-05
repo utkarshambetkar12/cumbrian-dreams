@@ -1,0 +1,16 @@
+{% macro property_card(p) -%}
+<div class="cd-card">
+	<div class="cd-row">
+		<div class="cd-title">{{ p.title }}</div>
+		<div class="cd-price">₹{{ p.price_per_night }}</div>
+	</div>
+	<div class="cd-muted">{{ p.location }}</div>
+	{% if p.features %}
+	<div class="cd-small cd-muted">{{ p.features }}</div>
+	{% endif %}
+	<div class="cd-row cd-foot">
+		<span class="cd-tiny cd-muted">{{ p.name }}</span>
+		<a class="cd-btn cd-secondary" href="/property?name={{ p.name }}">View</a>
+	</div>
+</div>
+{%- endmacro %}

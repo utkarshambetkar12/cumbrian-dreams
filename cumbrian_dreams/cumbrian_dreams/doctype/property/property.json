@@ -1,0 +1,79 @@
+{
+  "doctype": "DocType",
+  "name": "Property",
+  "module": "Cumbrian Dreams",
+  "autoname": "PROP-.####",
+  "custom": 0,
+  "istable": 0,
+  "editable_grid": 1,
+  "track_changes": 1,
+  "engine": "InnoDB",
+  "title_field": "title",
+  "fields": [
+    {
+      "fieldname": "title",
+      "label": "Name",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "price_per_night",
+      "label": "Price per Night",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "location",
+      "label": "Location",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "host",
+      "label": "Host",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "external_property_id",
+      "label": "External Property ID",
+      "fieldtype": "Int",
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "external_property_widget_id",
+      "label": "External Property Widget ID",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "rules",
+      "label": "Rules",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "features",
+      "label": "Features of the Property",
+      "fieldtype": "Text"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    { "role": "Host", "read": 1, "write": 1 },
+    { "role": "Customer", "read": 1 }
+  ]
+}

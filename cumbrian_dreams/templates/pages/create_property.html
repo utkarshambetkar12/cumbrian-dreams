@@ -1,0 +1,218 @@
+{% extends "templates/web.html" %} {% block page_title %}Create Property · Cumbrian Dreams{%
+endblock %} {% block page_content %}
+
+<style>
+	.cd-wrap {
+		max-width: 840px;
+		margin: 0 auto;
+	}
+	.cd-card {
+		background: #fff;
+		border: 1px solid #eee;
+		border-radius: 14px;
+		padding: 14px;
+	}
+	.cd-grid {
+		display: grid;
+		gap: 0.75rem;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	}
+	.cd-input,
+	.cd-textarea,
+	select {
+		width: 100%;
+		padding: 0.5rem 0.6rem;
+		border-radius: 10px;
+		border: 1px solid #ddd;
+	}
+	.cd-textarea {
+		min-height: 100px;
+	}
+	.cd-btn {
+		display: inline-block;
+		border: 0;
+		border-radius: 10px;
+		padding: 0.5rem 0.9rem;
+		text-decoration: none;
+		font-size: 0.95rem;
+		cursor: pointer;
+	}
+	.cd-primary {
+		background: #4f46e5;
+		color: #fff;
+	}
+	.cd-secondary {
+		background: #eef;
+		color: #223;
+	}
+	.cd-muted {
+		color: #666;
+	}
+	.cd-tiny {
+		font-size: 0.8rem;
+		color: #999;
+	}
+	.ok {
+		color: #16a34a;
+	}
+	.err {
+		color: #e11d48;
+	}
+</style>
+
+<div class="cd-wrap">
+	<div class="cd-card">
+		<h2 style="margin: 0 0 0.5rem 0">Create a new property</h2>
+		<div class="cd-tiny cd-muted" style="margin-bottom: 0.5rem">
+			Hosts can create properties for themselves. System Managers can assign a different
+			host.
+		</div>
+
+		<div class="cd-grid">
+			<label>
+				<div class="cd-tiny">Title</div>
+				<input id="cp-title" class="cd-input" placeholder="e.g. Lakeside Cottage" />
+			</label>
+
+			<label>
+				<div class="cd-tiny">Price per Night</div>
+				<input
+					id="cp-price"
+					class="cd-input"
+					type="number"
+					step="0.01"
+					placeholder="e.g. 4500"
+				/>
+			</label>
+
+			<label>
+				<div class="cd-tiny">Location</div>
+				<input id="cp-location" class="cd-input" placeholder="e.g. Windermere, UK" />
+			</label>
+
+			{% if is_system_manager %}
+			<label>
+				<div class="cd-tiny">Host (System Manager only)</div>
+				<select id="cp-host" class="cd-input">
+					<option value="">— Use my user —</option>
+					{% for u in users %}
+					<option value="{{ u.name }}">
+						{{ u.full_name or u.email or u.name }} ({{ u.name }})
+					</option>
+					{% endfor %}
+				</select>
+			</label>
+			{% endif %}
+
+			<label style="grid-column: 1/-1">
+				<div class="cd-tiny">Features</div>
+				<textarea
+					id="cp-features"
+					class="cd-textarea"
+					placeholder="Wi-Fi, Fireplace, Parking, Kitchen, ..."
+				></textarea>
+			</label>
+
+			<label style="grid-column: 1/-1">
+				<div class="cd-tiny">Rules</div>
+				<textarea
+					id="cp-rules"
+					class="cd-textarea"
+					placeholder="No smoking. Quiet hours after 10pm. ..."
+				></textarea>
+			</label>
+		</div>
+
+		<div style="margin-top: 0.75rem; display: flex; gap: 0.5rem">
+			<button id="cp-create" class="cd-btn cd-primary" type="button">Create Property</button>
+			<a class="cd-btn cd-secondary" href="/properties">Back to Listings</a>
+		</div>
+
+		<div id="cp-msg" class="cd-muted" style="margin-top: 0.5rem"></div>
+	</div>
+</div>
+
+<script>
+	/* eslint-env browser */
+	/* global frappe */
+	(function () {
+		"use strict";
+		function byId(id) {
+			return document.getElementById(id);
+		}
+		function msg(t, cls) {
+			var el = byId("cp-msg");
+			if (!el) return;
+			el.className = (cls ? cls + " " : "") + "cd-muted";
+			el.textContent = String(t || "");
+		}
+
+		document.addEventListener("DOMContentLoaded", function () {
+			var btn = byId("cp-create");
+			if (!btn) return;
+			var csrf = typeof frappe !== "undefined" && frappe.csrf_token ? frappe.csrf_token : "";
+
+			btn.addEventListener("click", function () {
+				var title = (byId("cp-title").value || "").trim();
+				var price = (byId("cp-price").value || "").trim();
+				var location = (byId("cp-location").value || "").trim();
+				var features = (byId("cp-features").value || "").trim();
+				var rules = (byId("cp-rules").value || "").trim();
+				var hostSel = byId("cp-host");
+				var host = hostSel ? hostSel.value || "" : "";
+
+				if (!title || !price || !location) {
+					msg("Title, Price per Night, and Location are required.", "err");
+					return;
+				}
+
+				msg("Creating...");
+				fetch("/api/method/cumbrian_dreams.api.create_property", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrf },
+					credentials: "include",
+					body: JSON.stringify({
+						title: title,
+						price_per_night: price,
+						location: location,
+						features: features,
+						rules: rules,
+						host: host,
+					}),
+				})
+					.then(function (r) {
+						return r.json().then(function (j) {
+							return { status: r.status, body: j };
+						});
+					})
+					.then(function (resp) {
+						var body = resp.body && (resp.body.message || resp.body);
+						if (resp.status >= 400) {
+							var err =
+								(resp.body && (resp.body.message || resp.body._server_messages)) ||
+								"Failed to create property.";
+							msg(err, "err");
+							return;
+						}
+						var name =
+							resp.body && resp.body.property && resp.body.property.name
+								? resp.body.property.name
+								: "";
+						msg("Property created ✅" + (name ? " (" + name + ")" : ""), "ok");
+						if (name) {
+							// optional: take user to the new property page
+							setTimeout(function () {
+								window.location.href =
+									"/property?name=" + encodeURIComponent(name);
+							}, 800);
+						}
+					})
+					.catch(function () {
+						msg("Network error while creating property.", "err");
+					});
+			});
+		});
+	})();
+</script>
+
+{% endblock %}

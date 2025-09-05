@@ -1,0 +1,202 @@
+{% extends "templates/web.html" %}
+{% block page_title %}Host Bookings · Cumbrian Dreams{% endblock %}
+{% block page_content %}
+
+<style>
+  .cd-wrap{max-width:1040px;margin:0 auto}
+  .cd-card{background:#fff;border:1px solid #eee;border-radius:14px;padding:14px}
+  .cd-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .cd-grid{display:grid;gap:.75rem}
+  .cd-muted{color:#666}.cd-tiny{font-size:.75rem;color:#999}
+  .cd-btn{display:inline-block;border:0;border-radius:10px;padding:.45rem .75rem;text-decoration:none;font-size:.95rem;cursor:pointer}
+  .cd-primary{background:#4f46e5;color:#fff}
+  .cd-secondary{background:#eef;color:#223}
+  .cd-danger{background:#e11d48;color:#fff}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:.5rem;border-bottom:1px solid #eee}
+  .pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.8rem}
+  .pill.green{background:#dcfce7;color:#065f46}
+  .pill.gray{background:#f3f4f6;color:#374151}
+</style>
+
+<div class="cd-wrap">
+
+  {% if must_login %}
+    <div class="cd-card">
+      Please <a href="/login?redirect-to=/host_bookings">log in</a> to view your bookings.
+    </div>
+
+  {% elif not_host %}
+    <div class="cd-card">
+      You need the <strong>Host</strong> role to access this page.
+    </div>
+
+  {% elif host_has_no_properties %}
+    <div class="cd-card">
+      You don't have any properties yet. Create a Property to see its bookings.
+    </div>
+
+  {% else %}
+    <div class="cd-card">
+      <div class="cd-row">
+        <h2 style="margin:0">Host Bookings</h2>
+        <a class="cd-btn cd-secondary" href="/host_bookings">Reset</a>
+      </div>
+
+      <form method="get" action="/host_bookings" class="cd-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); margin-top:.75rem;">
+        <label>
+          <div class="cd-tiny">Property</div>
+          <select class="cd-input" name="property" style="width:100%;padding:.5rem .6rem;border:1px solid #ddd;border-radius:10px;">
+            <option value="">(All)</option>
+            {% for p in host_props %}
+              <option value="{{ p.name }}" {% if filters.property == p.name %}selected{% endif %}>
+                {{ p.title }} ({{ p.name }})
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <div class="cd-tiny">Status</div>
+          <select class="cd-input" name="status" style="width:100%;padding:.5rem .6rem;border:1px solid #ddd;border-radius:10px;">
+            {% for s in ["Active","Cancelled","All"] %}
+              <option {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <div class="cd-tiny">From Date</div>
+          <input class="cd-input" type="date" name="from_date" value="{{ filters.from_date }}" style="width:100%;padding:.5rem .6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+        <label>
+          <div class="cd-tiny">To Date</div>
+          <input class="cd-input" type="date" name="to_date" value="{{ filters.to_date }}" style="width:100%;padding:.5rem .6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+        <label>
+          <div class="cd-tiny">Limit</div>
+          <select class="cd-input" name="limit" style="width:100%;padding:.5rem .6rem;border:1px solid #ddd;border-radius:10px;">
+            {% for n in [20,50,100,200] %}
+              <option value="{{n}}" {% if filters.limit == n %}selected{% endif %}>{{n}}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div style="display:flex;align-items:end;gap:.5rem;">
+          <button class="cd-btn cd-primary" type="submit">Apply</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="cd-card" style="margin-top:.75rem;">
+      {% if items and items|length %}
+        <div class="cd-tiny cd-muted" style="margin-bottom:.5rem;">
+          Showing {{ items|length }} booking(s){% if filters.property %} for <strong>{{ filters.property }}</strong>{% endif %}.
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Booking</th>
+                <th>Property</th>
+                <th>User</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in items %}
+                <tr>
+                  <td>{{ r.name }}</td>
+                  <td>
+                    {% if r.property_details %}
+                      <div><strong>{{ r.property_details.title }}</strong></div>
+                      <div class="cd-tiny cd-muted">{{ r.property }}</div>
+                    {% else %}
+                      {{ r.property }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if r.user_details %}
+                      <div><strong>{{ r.user_details.full_name or r.user_details.email }}</strong></div>
+                      <div class="cd-tiny cd-muted">{{ r.user }}</div>
+                    {% else %}
+                      {{ r.user }}
+                    {% endif %}
+                  </td>
+                  <td>{{ frappe.utils.formatdate(r.booking_date, "dd MMM yyyy") }}</td>
+                  <td>
+                    {% if r.status == "Active" %}
+                      <span class="pill green">Active</span>
+                    {% else %}
+                      <span class="pill gray">Cancelled</span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align:right;">
+                    {% if r.status == "Active" %}
+                      <button class="cd-btn cd-danger js-cancel" data-booking="{{ r.name }}" type="button">Cancel</button>
+                    {% else %}
+                      <span class="cd-tiny cd-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="cd-row" style="margin-top:.75rem;">
+          {% if filters.offset|int > 0 %}
+            <a class="cd-btn cd-secondary"
+               href="/host_bookings?{{ urlencode({'property':filters.property,'status':filters.status,'from_date':filters.from_date,'to_date':filters.to_date,'limit':filters.limit,'offset': max(0, filters.offset|int - filters.limit|int)}) }}">Prev</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+          {% if paging.has_more %}
+            <a class="cd-btn cd-secondary"
+               href="/host_bookings?{{ urlencode({'property':filters.property,'status':filters.status,'from_date':filters.from_date,'to_date':filters.to_date,'limit':filters.limit,'offset': paging.next_offset}) }}">Next</a>
+          {% endif %}
+        </div>
+
+      {% else %}
+        No bookings found.
+      {% endif %}
+    </div>
+
+    <script>
+    /* eslint-env browser */
+    /* global frappe */
+    (function(){
+      'use strict';
+      document.addEventListener('DOMContentLoaded', function(){
+        var csrf = (typeof frappe !== 'undefined' && frappe.csrf_token) ? frappe.csrf_token : '';
+        document.querySelectorAll('.js-cancel').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var id = btn.getAttribute('data-booking');
+            if (!id) return;
+            if (!confirm('Cancel booking ' + id + '?')) return;
+
+            fetch('/api/method/cumbrian_dreams.api.cancel_booking', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
+              credentials: 'include',
+              body: JSON.stringify({ name: id, cancel_reason: 'Host cancel via UI' })
+            })
+            .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+            .then(function(resp){
+              if (resp.status === 200 && (resp.body.ok === true || resp.body.message === 'Booking cancelled.')) {
+                window.location.reload();
+              } else {
+                var msg = (resp.body && (resp.body.message || resp.body._server_messages)) || 'Cancel failed';
+                alert(msg);
+              }
+            })
+            .catch(function(){ alert('Network error while cancelling.'); });
+          });
+        });
+      });
+    })();
+    </script>
+  {% endif %}
+</div>
+
+{% endblock %}
