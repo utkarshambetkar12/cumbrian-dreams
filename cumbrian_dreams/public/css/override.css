@@ -1,0 +1,18 @@
+/* tweak Frappe theme variables (applies widely) */
+:root {
+	--primary: #8263f7; /* buttons, links, accents in many places */
+	--border-radius: 12px;
+}
+
+/* precise component overrides */
+.btn.btn-primary {
+	background: var(--primary) !important;
+	border-color: var(--primary) !important;
+}
+.form-control {
+	border-radius: 12px;
+}
+
+.container {
+	max-width: unset !important;
+}

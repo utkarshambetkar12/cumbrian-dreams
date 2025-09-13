@@ -5,6 +5,9 @@ app_description = "AirBnb Ripoff"
 app_email = "utkarshambetkar12@gmail.com"
 app_license = "mit"
 
+app_include_css = ["/assets/cumbrian_dreams/css/overrides.css"]
+web_include_css = ["/assets/cumbrian_dreams/css/overrides.css"]
+
 # Apps
 # ------------------
 
